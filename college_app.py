@@ -23,26 +23,39 @@ path = path + temp
 path_2 = os.getcwd() + temp_2
 
 
-# Function to add data to the csv file
-def add_data(student_id, student_name, student_year, student_branch, fee_fra, fee_mgt, paid_fee, date, pending_fee):
+# Function to update the csv file with the new data
+def add_data(student_id, pending_fee, paid_fee, date, reciept_no, previous_paid_date):
     try:
-        # Create a dataframe
-        df = pd.DataFrame({'Student ID': [student_id], 'Student Name': [student_name], 'Student Year': [student_year],
-                           'Student Branch': [student_branch], 'Fee as per FRA': [fee_fra],
-                           'Fee as per Management': [fee_mgt], 'Paid Fee': [paid_fee], 'Date': [date],
-                           'Pending Fee': [pending_fee - int(paid_fee)]})
-        # store the dataframe in a csv file append mode
-        df.to_csv(path_2)
-        st.write("Data added successfully")
-        st.table(df)
+        df = pd.read_csv(path)
+        # Search for the student id in the csv file
+        if student_id in df['Student id'].values:
+            # Get the index of the student id
+            index = df[df['Student id'] == student_id].index[0]
+            # Update the pending fee
+            df.loc[index, 'Balance Fee'] = pending_fee
+            # Update the paid fee
+            df.loc[index, 'FEES PAID'] = paid_fee
+            # Update the date
+            df.loc[index, 'Date'] = date
+            # Update the reciept no
+            df.loc[index, 'Reciept No'] = str(reciept_no)
+            # Update the previous paid date
+            df.loc[index, 'Previous Paid Date'] = previous_paid_date
+            # Write the updated data to the csv file
+            df.to_csv(path, index=False)
+            st.success("Data Updated Successfully")
+        else:
+            st.error("Student id not found")
     except Exception as e:
         st.write("Oops!", str(e), "occurred.")
 
 
 # Function to display the data
-def display_data(df):
+def display_data(student_id):
     try:
-        #df = pd.read_csv(path_2)
+        df = pd.read_csv(path)
+        # Search for the student id in the dataframe
+        df = df[df['Student id'] == student_id]
         # Display the dataframe in a table format in the middle of the page
         st.table(df)
 
@@ -68,7 +81,7 @@ def search_data(student_id):
     try:
         df = pd.read_csv(path)
         # Search for the student id in the dataframe
-        df = df[df['Student ID'] == int(student_id)]
+        df = df[df['Student id'] == student_id]
         # Display the dataframe in a table format in the middle of the page
         return df
     except Exception as e:
@@ -86,20 +99,41 @@ fee_mgt = None
 paid_fee = None
 date = None
 pending_fee = None
+previous_paid_date = None
+reciept_no = None
 if student_id:
     df = search_data(student_id)
     if df.empty:
         st.write("No data found")
     else:
-        student_name = st.text_input("Enter Student Name", df['Student Name'].iloc[0])
-        student_year = st.selectbox("Enter Student Year", ("1st Year", "2nd Year", "3rd Year", "4th Year"), index=0)
-        student_branch = st.selectbox("Enter Student Branch", ("CSE", "ECE", "EEE", "MECH", "CIVIL", "MBA"), index=0)
-        fee_fra = st.text_input("Enter College Fee as per FRA", df['Fee as per FRA'].iloc[0])
-        fee_mgt = st.text_input("Enter College Fee as per Management", df['Fee as per Management'].iloc[0])
-        st.warning("Pending Fee: " + str(df['Pending Fee'].iloc[0]))
+        student_name = st.text_input("Student Name", df['NAME'].iloc[0])
+        student_year = st.text_input("Student Year", df['year'].iloc[0])
+        student_branch = st.text_input("Student Branch", df['Branch'].iloc[0])
+        category = st.text_input("Category", df['Category'].iloc[0])
+        fee_fra = st.text_input("Fee as per FRA", df['FRA FEE'].iloc[0])
+        fee_mgt = st.text_input("College Fee as per Management", df['FEES'].iloc[0])
+        previous_paid_amount = st.text_input("Previous Paid Amount", df['FEES PAID'].iloc[0])
+        previous_paid_date = st.text_input("Previous Paid Date", df['Previous Paid Date'].iloc[0])
+        col1, col2 = st.columns(2)
+        with col2:
+            st.warning("As on Date " + pd.datetime.now().strftime("%d/%m/%Y"))
+        with col1:
+            st.warning("Pending Fee: " + str(df['Balance Fee'].iloc[0]))
+
         paid_fee = st.text_input("Enter Paid Fee")
+        reciept_no = st.text_input("Reciept No", df['Reciept No'].iloc[0])
         date = st.date_input("Enter Date", pd.to_datetime('today'))
 
 # Add a Display Data button on the right side of the screen
 if st.button("Add Data"):
-    add_data(student_id, student_name, student_year, student_branch, fee_fra, fee_mgt, paid_fee, date, df['Pending Fee'].iloc[0])
+    # Calculate the pending fee
+    pending_fee = int(df['Balance Fee'].iloc[0]) - int(paid_fee)
+    # Calculate the total paid fee
+    paid_fee = int(previous_paid_amount) + int(paid_fee)
+    # Add the pending fee, paid fee, date and reciept no to the csv file
+    add_data(student_id, pending_fee, paid_fee, date, reciept_no, date)
+    display_data(student_id)
+
+
+
+
